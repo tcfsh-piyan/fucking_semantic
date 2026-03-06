@@ -1,99 +1,182 @@
-/* --- 視覺倒數進度條 --- */
-#progress-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 8px;
-    background: rgba(255, 255, 255, 0.1);
-    z-index: 100;
+:root { 
+    --bg-color: #121212; 
+    --text-main: #ffffff; 
+    --text-dim: #a0a0a0; 
+    --accent: #3498db; 
+    --success: #2ecc71; 
+    --danger: #e74c3c;
+    --rank-gold: #f1c40f; 
 }
 
-#progress-bar {
-    height: 100%;
-    background: var(--accent);
+body { 
+    background-color: var(--bg-color); 
+    background-image: radial-gradient(circle at 50% 0%, #2a2a2a 0%, #121212 70%); /* 增加深色模式層次感 */
+    color: var(--text-main); 
+    font-family: 'PingFang TC', 'Microsoft JhengHei', -apple-system, sans-serif; 
+    margin: 0; 
+    overflow: hidden; 
+    touch-action: manipulation; /* 嚴格防止手機連點放大 */
+    user-select: none; 
+    -webkit-user-select: none; 
+}
+
+#jspsych-target { 
+    height: 100vh; 
+    width: 100vw;
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+}
+
+/* --- 測驗題目顯示區 --- */
+.trial-box { 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center; 
+    height: 50vh; 
     width: 100%; 
-    box-shadow: 0 0 10px var(--accent);
+    transform: translateY(-8vh); /* 往上移，把底部空間完全留給巨型按鈕 */
 }
 
-/* 覆核表單按鈕美化 */
-#jspsych-survey-html-form-next {
-    background-color: var(--accent);
-    border: none;
-    padding: 12px 30px;
-    font-size: 1.2rem;
-    border-radius: 8px;
-    cursor: pointer;
+.cue-label { 
+    font-size: 2.5rem; /* 類別大字 */
+    color: var(--text-dim); 
+    margin-bottom: 30px; 
+    font-weight: 400; 
+    letter-spacing: 4px; 
+}
+
+.target-label { 
+    font-size: 5.5rem; /* 目標詞巨型字體 */
+    font-weight: 900; 
+    min-height: 1.2em; 
+    text-shadow: 0 5px 20px rgba(0,0,0,0.8); 
+}
+
+/* --- 底部作答按鍵區塊 (手機大拇指專屬) --- */
+.control-panel { 
+    position: fixed; 
+    bottom: 5vh; /* 貼近手機底部 */
+    left: 0; 
+    right: 0; 
+    width: 100%; 
+    display: flex; 
+    justify-content: center; 
+    gap: 5vw; /* 按鈕之間的距離 */
+    padding: 0 5vw; 
+    box-sizing: border-box; 
+    z-index: 10;
+}
+
+/* --- 巨型操作按鈕 --- */
+.mobile-btn { 
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+    flex: 1; /* 均分畫面寬度 */
+    max-width: 250px; 
+    padding: 3.5vh 0; /* 極高的點擊範圍 */
+    font-size: 2.2rem; 
+    font-weight: bold; 
+    border-radius: 25px; /* 高級圓角 */
+    border: none; 
+    color: white; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6), inset 0 2px 0 rgba(255,255,255,0.2); 
+    cursor: pointer; 
+    transition: transform 0.1s, filter 0.2s; 
+}
+
+.mobile-btn:active { 
+    transform: scale(0.92); /* 點擊回饋 */
+    filter: brightness(0.8);
+}
+
+.btn-f { background: linear-gradient(145deg, #2ecc71, #27ae60); }
+.btn-j { background: linear-gradient(145deg, #e74c3c, #c0392b); }
+
+/* --- 半透明毛玻璃面板 (取代醜陋方格) --- */
+.info-container { 
+    text-align: center; 
+    width: 90vw; 
+    max-width: 600px; 
+    line-height: 1.6; 
+}
+
+.score-board { 
+    background: rgba(255, 255, 255, 0.08); 
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.15); 
+    border-radius: 25px; 
+    padding: 35px 25px; 
+    margin: 20px auto; 
+    box-shadow: 0 15px 40px rgba(0,0,0,0.4); 
+}
+
+/* --- 表單輸入框美化 --- */
+input[type="text"] {
+    width: 100%; 
+    box-sizing: border-box;
+    padding: 18px 20px; 
+    font-size: 1.5rem; 
+    border-radius: 18px; 
+    border: 2px solid rgba(255,255,255,0.1);
+    background: rgba(0,0,0,0.4);
     color: white;
+    text-align: center; 
+    outline: none;
+    transition: border-color 0.3s, background 0.3s;
+}
+input[type="text"]:focus {
+    border-color: var(--accent);
+    background: rgba(0,0,0,0.6);
+}
+
+/* --- jsPsych 預設確認按鈕美化 --- */
+.jspsych-btn {
+    background: linear-gradient(145deg, var(--accent), #2980b9); 
+    border: none; 
+    padding: 18px 50px;
+    font-size: 1.6rem; 
+    border-radius: 30px; 
+    cursor: pointer; 
+    color: white; 
     font-weight: bold;
-    margin-top: 15px;
+    margin-top: 25px;
+    box-shadow: 0 8px 25px rgba(52, 152, 219, 0.5);
+    transition: transform 0.1s;
+}
+.jspsych-btn:active { transform: scale(0.92); }
+
+/* --- 頂部進度條 --- */
+#progress-container {
+    position: fixed; top: 0; left: 0; width: 100%; height: 1vh; background: rgba(255, 255, 255, 0.05); z-index: 100;
+}
+#progress-bar {
+    height: 100%; background: var(--accent); width: 100%; box-shadow: 0 0 15px var(--accent);
+}
+
+/* --- 疑義覆核清單：巨型點擊列 (徹底消滅微小方格) --- */
+.review-item {
+    display: flex;
+    align-items: center;
+    background: rgba(255,255,255,0.08);
+    padding: 18px 20px;
+    border-radius: 20px;
+    margin-bottom: 15px;
+    border: 1px solid rgba(255,255,255,0.1);
     transition: background 0.2s;
-}
-
-#jspsych-survey-html-form-next:hover {
-    background-color: #2980b9;
-}
-
-/* --- 視覺倒數進度條 --- */
-#progress-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 8px;
-    background: rgba(255, 255, 255, 0.1);
-    z-index: 100;
-}
-
-#progress-bar {
-    height: 100%;
-    background: var(--accent);
-    width: 100%; 
-    box-shadow: 0 0 15px var(--accent);
-}
-
-/* --- jsPsych 表單按鈕統一美化 (覆蓋預設白色按鈕) --- */
-#jspsych-survey-html-form-next {
-    background-color: var(--accent);
-    border: none;
-    padding: 15px 40px;
-    font-size: 1.3rem;
-    border-radius: 12px;
     cursor: pointer;
-    color: white;
-    font-weight: bold;
-    margin-top: 20px;
-    box-shadow: 0 6px 12px rgba(0,0,0,0.4);
-    transition: transform 0.1s, background-color 0.2s;
 }
-
-#jspsych-survey-html-form-next:hover {
-    background-color: #2980b9;
+.review-item:active { background: rgba(255,255,255,0.15); }
+.review-item input[type="checkbox"] {
+    width: 28px;
+    height: 28px;
+    margin-right: 20px;
+    accent-color: var(--accent);
 }
-
-#jspsych-survey-html-form-next:active {
-    transform: scale(0.95);
-}
-
-/* --- 載入中文字閃爍動畫 --- */
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
-}
-
-/* --- 美化暗黑模式下的捲軸 (針對覆核面板) --- */
-.custom-scrollbar::-webkit-scrollbar {
-    width: 8px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.2); 
-    border-radius: 10px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.3); 
-    border-radius: 10px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.5); 
-}
+.stat-row { display: flex; justify-content: space-between; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+.stat-label { font-size: 1.2rem; color: var(--text-dim); }
+.stat-value { font-size: 1.5rem; color: var(--accent); font-weight: bold; }
+.final-rank { font-size: 3rem; color: var(--rank-gold); font-weight: bold; margin: 20px 0; text-shadow: 0 0 20px rgba(241, 196, 15, 0.4); }
