@@ -1,16 +1,19 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
+// --- Firebase 初始化 (更新為 fucking-semantic) ---
 const firebaseConfig = {
-  apiKey: "AIzaSyCHlnJz0R1ruHYnoOKbznaF9KO7g81DDSo",
-  authDomain: "semantic-satiation-exp.firebaseapp.com",
-  projectId: "semantic-satiation-exp",
-  storageBucket: "semantic-satiation-exp.firebasestorage.app",
-  messagingSenderId: "591342793924",
-  appId: "1:591342793924:web:2359050e1a170bb53b0591"
+  apiKey: "AIzaSyDig0LXShXvoUC-Q_jsB4fnt04ndT4AKMI",
+  authDomain: "fucking-semantic.firebaseapp.com",
+  projectId: "fucking-semantic",
+  storageBucket: "fucking-semantic.firebasestorage.app",
+  messagingSenderId: "121956643814",
+  appId: "1:121956643814:web:ca000fe3c3650602935c27"
 };
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+
 
 const wordBank = {
   "動物": { high: ["非洲象", "班馬", "黃金獵犬", "老虎", "獅子"], low: ["駱駝", "狐狸", "鴨嘴獸", "驢子", "麻雀"] },
