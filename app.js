@@ -32,7 +32,7 @@ const allCategories = Object.keys(wordBank);
 
 // --- 全域變數 ---
 let sub_id = "PLAYER_" + Math.random().toString(36).substring(2, 7).toUpperCase();
-let userFeedbackData = {};
+let userFeedbackData = {}; 
 
 function shuffle(array) {
   let arr = [...array];
@@ -48,10 +48,11 @@ function generateBlockTrials(coreCategory, correlationType) {
   let remainingCategories = shuffle(allCategories.filter(c => c !== coreCategory));
 
   let g1Targets = shuffle([...wordBank[coreCategory][correlationType]]);
-  for (let i=0; i<5; i++) trials.push({ cue: coreCategory, target: g1Targets[i], match: true, condition: "重複_匹配" });
-  for (let i=0; i<5; i++) trials.push({ cue: coreCategory, target: wordBank[remainingCategories[i]][correlationType][i], match: false, condition: "重複_不匹配" });
-  for (let i=0; i<5; i++) trials.push({ cue: remainingCategories[i], target: wordBank[remainingCategories[i]][correlationType][0], match: true, condition: "不重複_匹配" });
-  for (let i=5; i<10; i++) trials.push({ cue: remainingCategories[i], target: wordBank[remainingCategories[i-5]][correlationType][1], match: false, condition: "不重複_不匹配" });
+  // 💡 直接改為英文代號
+  for (let i=0; i<5; i++) trials.push({ cue: coreCategory, target: g1Targets[i], match: true, condition: "repeat_match" });
+  for (let i=0; i<5; i++) trials.push({ cue: coreCategory, target: wordBank[remainingCategories[i]][correlationType][i], match: false, condition: "repeat_mismatch" });
+  for (let i=0; i<5; i++) trials.push({ cue: remainingCategories[i], target: wordBank[remainingCategories[i]][correlationType][0], match: true, condition: "non-repeat_match" });
+  for (let i=5; i<10; i++) trials.push({ cue: remainingCategories[i], target: wordBank[remainingCategories[i-5]][correlationType][1], match: false, condition: "non-repeat_mismatch" });
 
   return shuffle(trials);
 }
@@ -71,7 +72,6 @@ const jsPsych = initJsPsych({
 
 let timeline = [];
 
-// 1. 高級毛玻璃首頁
 timeline.push({
   type: jsPsychSurveyHtmlForm,
   html: `
@@ -90,7 +90,6 @@ timeline.push({
   }
 });
 
-// 2. 說明頁面 (修正器官標準)
 timeline.push({
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
@@ -110,7 +109,7 @@ timeline.push({
             <li>職業與動物<b>絕對不重疊</b><br><span style="color:#aaa">(例如：校長不屬動物)</span></li>
           </ul>
         </div>
-        <p style="color: #e74c3c; font-weight: bold; font-size: 1.1rem; text-align:center; margin-top: 20px;">⚡ 每題限時 2.5 秒，逾時自動跳轉！</p>
+        <p style="color: #e74c3c; font-weight: bold; font-size: 1.2rem; text-align:center; margin-top: 20px; animation: pulse 1.5s infinite;">⚡ 每題限時 2.5 秒<br>請緊盯螢幕，並認真作答！</p>
       </div>
       <button id="start" class="jspsych-btn" style="width: 100%; max-width: 400px; padding: 20px 0;">我了解了，開始</button>
     </div>`,
@@ -172,7 +171,7 @@ timeline.push({
       if (idx < 5) {
         dynamicTimeline.push({
           type: jsPsychHtmlKeyboardResponse,
-          choices: "NO_KEYS", trial_duration: 4000,
+          choices: "NO_KEYS", trial_duration: 4500,
           stimulus: () => {
             const data = jsPsych.data.get().filter({block_order: bData.blockNum, phase: 'test'});
             const acc = data.count() > 0 ? Math.round((data.filter({correct: true}).count() / data.count()) * 100) : 0;
@@ -183,13 +182,14 @@ timeline.push({
               <div class="score-board">
                 <div class="stat-row"><span class="stat-label">此階段正確率</span><span class="stat-value">${acc}%</span></div>
                 <div class="stat-row" style="border:none;"><span class="stat-label">平均速度</span><span class="stat-value">${rt} ms</span></div>
-              </div></div>`;
+              </div>
+              <p style="color: #e74c3c; font-weight: bold; font-size: 1.3rem; margin-top: 25px; animation: pulse 1.5s infinite;">⚡ 下一階段即將開始<br>請緊盯螢幕並認真作答！</p>
+              </div>`;
           }
         });
       }
     });
 
-    // 3. 疑義覆核面板
     dynamicTimeline.push({
       type: jsPsychSurveyHtmlForm,
       button_label: '確認送出',
@@ -200,12 +200,16 @@ timeline.push({
         const sdRT = Math.sqrt(validRTs.map(x => Math.pow(x - meanRT, 2)).reduce((a,b)=>a+b, 0) / validRTs.length);
         const threshold = meanRT + sdRT;
 
+        // 💡 關鍵修復：強制把 body 的 overflow 打開，讓手機版可以往下滑動到按鈕
         let reviewHtml = `
-          <style>#progress-container { display: none !important; width: 0 !important; transition: none !important; }</style>
-          <div class="info-container" style="width: 95vw;">
+          <style>
+            body { overflow: auto !important; touch-action: auto !important; }
+            #progress-container { display: none !important; width: 0 !important; transition: none !important; }
+          </style>
+          <div class="info-container" style="width: 95vw; margin-bottom: 50px;">
           <h2 style="font-size: 2rem; color: var(--rank-gold); margin-bottom: 10px;">⚠️ 試次覆核</h2>
           <p style="font-size:1.1rem; color:var(--text-dim); margin-bottom: 20px;">以下為您的異常作答，若對題目有疑義請直接點擊勾選：</p>
-          <div style="height: 40vh; overflow-y: auto; text-align: left; padding-right: 5px; margin-bottom: 20px;">`;
+          <div style="max-height: 40vh; overflow-y: auto; text-align: left; padding-right: 5px; margin-bottom: 20px;">`;
         
         allTest.values().forEach((t, i) => {
           let reason = ""; let rColor = "";
@@ -240,7 +244,6 @@ timeline.push({
       }
     });
 
-    // 4. 結算與上傳畫面
     dynamicTimeline.push({
       type: jsPsychHtmlKeyboardResponse,
       choices: "NO_KEYS",
