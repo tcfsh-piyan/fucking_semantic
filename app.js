@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-// --- Firebase 初始化 (更新為 fucking-semantic) ---
+// --- Firebase 初始化 ---
 const firebaseConfig = {
   apiKey: "AIzaSyDig0LXShXvoUC-Q_jsB4fnt04ndT4AKMI",
   authDomain: "fucking-semantic.firebaseapp.com",
@@ -10,10 +10,8 @@ const firebaseConfig = {
   messagingSenderId: "121956643814",
   appId: "1:121956643814:web:ca000fe3c3650602935c27"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-
 
 const wordBank = {
   "動物": { high: ["非洲象", "班馬", "黃金獵犬", "老虎", "獅子"], low: ["駱駝", "狐狸", "鴨嘴獸", "驢子", "麻雀"] },
@@ -30,7 +28,9 @@ const wordBank = {
 };
 const allCategories = Object.keys(wordBank);
 
+// --- 全域變數 ---
 let sub_id = "PLAYER_" + Math.random().toString(36).substring(2, 7).toUpperCase();
+let userFeedbackData = {}; // 💡 新增：用來安全儲存表單資料的全域變數
 
 function shuffle(array) {
   let arr = [...array];
@@ -88,7 +88,7 @@ timeline.push({
   }
 });
 
-// 2. 說明頁面 (手機排版優化)
+// 2. 說明頁面
 timeline.push({
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
@@ -150,7 +150,6 @@ timeline.push({
               if (pb) { pb.style.transition = 'width 2.5s linear'; pb.style.width = '0%'; }
             });
             const handleResp = (key) => { jsPsych.finishTrial({ response: key, rt: performance.now() - startT }); };
-            // 手機觸控事件綁定
             document.getElementById('btn-f').addEventListener('touchstart', (e) => { e.preventDefault(); handleResp('f'); });
             document.getElementById('btn-j').addEventListener('touchstart', (e) => { e.preventDefault(); handleResp('j'); });
             document.getElementById('btn-f').onmousedown = () => handleResp('f');
@@ -188,7 +187,7 @@ timeline.push({
       }
     });
 
-    // 3. 疑義覆核面板 (手機專用列表式點擊，徹底消滅微小方格)
+    // 3. 疑義覆核面板
     dynamicTimeline.push({
       type: jsPsychSurveyHtmlForm,
       button_label: '確認送出',
@@ -228,10 +227,13 @@ timeline.push({
         </div>`;
         return reviewHtml;
       },
-      on_finish: (data) => { jsPsych.data.addProperties({ feedback: data.response }); }
+      on_finish: (data) => { 
+        // 💡 關鍵修復：將資料存入全域變數，取代會崩潰的 jsPsych 舊 API
+        userFeedbackData = data.response; 
+      }
     });
 
-    // 4. 結算畫面
+    // 4. 結算與上傳畫面
     dynamicTimeline.push({
       type: jsPsychHtmlKeyboardResponse,
       choices: "NO_KEYS",
@@ -263,7 +265,6 @@ timeline.push({
       },
       on_load: async () => {
         const finalData = jsPsych.data.get().filter({phase: 'test'}).values();
-        const globalProps = jsPsych.data.getProperties();
         const statusText = document.getElementById('upload-status');
         
         try {
@@ -274,7 +275,7 @@ timeline.push({
             subjectId: sub_id, 
             experimentBlocks: experimentBlocks,
             trialsData: finalData,
-            feedback: globalProps.feedback || {},
+            feedback: userFeedbackData, // 💡 關鍵修復：呼叫剛剛存好的全域變數
             completionTime: new Date().toLocaleString("zh-TW"),
             totalTrials: finalData.length,
             accuracy: Math.round((jsPsych.data.get().filter({phase: 'test', correct: true}).count() / 120) * 100),
