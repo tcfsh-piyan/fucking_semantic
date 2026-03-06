@@ -48,7 +48,7 @@ function generateBlockTrials(coreCategory, correlationType) {
   let remainingCategories = shuffle(allCategories.filter(c => c !== coreCategory));
 
   let g1Targets = shuffle([...wordBank[coreCategory][correlationType]]);
-  // 💡 直接改為英文代號
+  // 💡 已全部改為英文條件代碼
   for (let i=0; i<5; i++) trials.push({ cue: coreCategory, target: g1Targets[i], match: true, condition: "repeat_match" });
   for (let i=0; i<5; i++) trials.push({ cue: coreCategory, target: wordBank[remainingCategories[i]][correlationType][i], match: false, condition: "repeat_mismatch" });
   for (let i=0; i<5; i++) trials.push({ cue: remainingCategories[i], target: wordBank[remainingCategories[i]][correlationType][0], match: true, condition: "non-repeat_match" });
@@ -72,6 +72,7 @@ const jsPsych = initJsPsych({
 
 let timeline = [];
 
+// 1. 高級毛玻璃首頁
 timeline.push({
   type: jsPsychSurveyHtmlForm,
   html: `
@@ -90,6 +91,7 @@ timeline.push({
   }
 });
 
+// 2. 說明頁面
 timeline.push({
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
@@ -151,6 +153,8 @@ timeline.push({
               if (pb) { pb.style.transition = 'width 2.5s linear'; pb.style.width = '0%'; }
             });
             const handleResp = (key) => { jsPsych.finishTrial({ response: key, rt: performance.now() - startT }); };
+            
+            // 使用 preventDefault 攔截點擊，防止穿透
             document.getElementById('btn-f').addEventListener('touchstart', (e) => { e.preventDefault(); handleResp('f'); });
             document.getElementById('btn-j').addEventListener('touchstart', (e) => { e.preventDefault(); handleResp('j'); });
             document.getElementById('btn-f').onmousedown = () => handleResp('f');
@@ -168,28 +172,33 @@ timeline.push({
         });
       });
 
-      if (idx < 5) {
-        dynamicTimeline.push({
-          type: jsPsychHtmlKeyboardResponse,
-          choices: "NO_KEYS", trial_duration: 4500,
-          stimulus: () => {
-            const data = jsPsych.data.get().filter({block_order: bData.blockNum, phase: 'test'});
-            const acc = data.count() > 0 ? Math.round((data.filter({correct: true}).count() / data.count()) * 100) : 0;
-            const validRTs = data.select('rt').values.filter(rt => rt !== null);
-            const rt = validRTs.length > 0 ? Math.round(validRTs.reduce((a,b)=>a+b, 0) / validRTs.length) : 0;
-            return `
-              <div class="info-container"><h2>階段 ${idx+1} / 6 完成</h2>
-              <div class="score-board">
-                <div class="stat-row"><span class="stat-label">此階段正確率</span><span class="stat-value">${acc}%</span></div>
-                <div class="stat-row" style="border:none;"><span class="stat-label">平均速度</span><span class="stat-value">${rt} ms</span></div>
-              </div>
-              <p style="color: #e74c3c; font-weight: bold; font-size: 1.3rem; margin-top: 25px; animation: pulse 1.5s infinite;">⚡ 下一階段即將開始<br>請緊盯螢幕並認真作答！</p>
-              </div>`;
-          }
-        });
-      }
+      // 💡 真正的修復在這裡：移除 if (idx < 5)，讓第 6 關結束後「絕對」會出現這個緩衝畫面！
+      dynamicTimeline.push({
+        type: jsPsychHtmlKeyboardResponse,
+        choices: "NO_KEYS", trial_duration: 4500,
+        stimulus: () => {
+          const data = jsPsych.data.get().filter({block_order: bData.blockNum, phase: 'test'});
+          const acc = data.count() > 0 ? Math.round((data.filter({correct: true}).count() / data.count()) * 100) : 0;
+          const validRTs = data.select('rt').values.filter(rt => rt !== null);
+          const rt = validRTs.length > 0 ? Math.round(validRTs.reduce((a,b)=>a+b, 0) / validRTs.length) : 0;
+          
+          let nextMsg = idx < 5 
+            ? "⚡ 下一階段即將開始<br>請緊盯螢幕並認真作答！" 
+            : "🎉 測驗階段已全部結束<br>準備進入數據覆核...";
+
+          return `
+            <div class="info-container"><h2>階段 ${idx+1} / 6 完成</h2>
+            <div class="score-board">
+              <div class="stat-row"><span class="stat-label">此階段正確率</span><span class="stat-value">${acc}%</span></div>
+              <div class="stat-row" style="border:none;"><span class="stat-label">平均速度</span><span class="stat-value">${rt} ms</span></div>
+            </div>
+            <p style="color: #e74c3c; font-weight: bold; font-size: 1.3rem; margin-top: 25px; animation: pulse 1.5s infinite;">${nextMsg}</p>
+            </div>`;
+        }
+      });
     });
 
+    // 3. 疑義覆核面板
     dynamicTimeline.push({
       type: jsPsychSurveyHtmlForm,
       button_label: '確認送出',
@@ -200,11 +209,12 @@ timeline.push({
         const sdRT = Math.sqrt(validRTs.map(x => Math.pow(x - meanRT, 2)).reduce((a,b)=>a+b, 0) / validRTs.length);
         const threshold = meanRT + sdRT;
 
-        // 💡 關鍵修復：強制把 body 的 overflow 打開，讓手機版可以往下滑動到按鈕
         let reviewHtml = `
           <style>
             body { overflow: auto !important; touch-action: auto !important; }
             #progress-container { display: none !important; width: 0 !important; transition: none !important; }
+            /* 鎖定按鈕時的樣式 */
+            #jspsych-survey-html-form-next:disabled { background: #555 !important; color: #aaa !important; cursor: not-allowed !important; transform: none !important; }
           </style>
           <div class="info-container" style="width: 95vw; margin-bottom: 50px;">
           <h2 style="font-size: 2rem; color: var(--rank-gold); margin-bottom: 10px;">⚠️ 試次覆核</h2>
@@ -238,12 +248,32 @@ timeline.push({
       on_load: () => {
         const pb = document.getElementById('progress-container');
         if (pb) pb.remove();
+
+        // 💡 終極物理防呆：鎖死按鈕並加上 2 秒倒數
+        const submitBtn = document.getElementById('jspsych-survey-html-form-next');
+        if(submitBtn) {
+            submitBtn.disabled = true;
+            let count = 2;
+            submitBtn.innerText = `請先確認上方數據... (${count})`;
+            
+            let cd = setInterval(() => {
+                count--;
+                if(count > 0) {
+                    submitBtn.innerText = `請先確認上方數據... (${count})`;
+                } else {
+                    clearInterval(cd);
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = "確認送出";
+                }
+            }, 1000);
+        }
       },
       on_finish: (data) => { 
         userFeedbackData = data.response; 
       }
     });
 
+    // 4. 結算與上傳畫面
     dynamicTimeline.push({
       type: jsPsychHtmlKeyboardResponse,
       choices: "NO_KEYS",
