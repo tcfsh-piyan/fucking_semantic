@@ -1,15 +1,17 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-// --- Firebase 初始化 ---
+// --- Firebase 初始化 (已換成你測試成功的最新設定) ---
 const firebaseConfig = {
   apiKey: "AIzaSyDig0LXShXvoUC-Q_jsB4fnt04ndT4AKMI",
   authDomain: "fucking-semantic.firebaseapp.com",
   projectId: "fucking-semantic",
   storageBucket: "fucking-semantic.firebasestorage.app",
   messagingSenderId: "121956643814",
-  appId: "1:121956643814:web:ca000fe3c3650602935c27"
+  appId: "1:121956643814:web:8d3691d705b62321935c27",
+  measurementId: "G-CNM3HH940R"
 };
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
@@ -30,7 +32,7 @@ const allCategories = Object.keys(wordBank);
 
 // --- 全域變數 ---
 let sub_id = "PLAYER_" + Math.random().toString(36).substring(2, 7).toUpperCase();
-let userFeedbackData = {}; // 💡 新增：用來安全儲存表單資料的全域變數
+let userFeedbackData = {}; // 💡 安全儲存表單資料的全域變數，防止最後一關崩潰
 
 function shuffle(array) {
   let arr = [...array];
@@ -228,7 +230,6 @@ timeline.push({
         return reviewHtml;
       },
       on_finish: (data) => { 
-        // 💡 關鍵修復：將資料存入全域變數，取代會崩潰的 jsPsych 舊 API
         userFeedbackData = data.response; 
       }
     });
@@ -275,14 +276,14 @@ timeline.push({
             subjectId: sub_id, 
             experimentBlocks: experimentBlocks,
             trialsData: finalData,
-            feedback: userFeedbackData, // 💡 關鍵修復：呼叫剛剛存好的全域變數
+            feedback: userFeedbackData,
             completionTime: new Date().toLocaleString("zh-TW"),
             totalTrials: finalData.length,
             accuracy: Math.round((jsPsych.data.get().filter({phase: 'test', correct: true}).count() / 120) * 100),
             device: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
           });
 
-          statusText.innerText = "✅ 數據已成功儲存！";
+          statusText.innerText = "✅ 數據已成功儲存！感謝參與！";
           statusText.style.color = "var(--success)";
           statusText.style.fontWeight = "bold";
         } catch(e) { 
