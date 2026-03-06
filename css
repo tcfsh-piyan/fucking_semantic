@@ -1,0 +1,35 @@
+/* --- 視覺倒數進度條 --- */
+#progress-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    z-index: 100;
+}
+
+#progress-bar {
+    height: 100%;
+    background: var(--accent);
+    width: 100%; 
+    box-shadow: 0 0 10px var(--accent);
+}
+
+/* 覆核表單按鈕美化 */
+#jspsych-survey-html-form-next {
+    background-color: var(--accent);
+    border: none;
+    padding: 12px 30px;
+    font-size: 1.2rem;
+    border-radius: 8px;
+    cursor: pointer;
+    color: white;
+    font-weight: bold;
+    margin-top: 15px;
+    transition: background 0.2s;
+}
+
+#jspsych-survey-html-form-next:hover {
+    background-color: #2980b9;
+}
