@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
+// --- Firebase 初始化 ---
 const firebaseConfig = {
   apiKey: "AIzaSyCHlnJz0R1ruHYnoOKbznaF9KO7g81DDSo",
   authDomain: "semantic-satiation-exp.firebaseapp.com",
@@ -12,7 +13,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// 依照數據集精準分類的 11 個主題
+// --- 完整 11 主題詞庫定義 ---
 const wordBank = {
   "動物": { high: ["非洲象", "班馬", "黃金獵犬", "老虎", "獅子"], low: ["駱駝", "狐狸", "鴨嘴獸", "驢子", "麻雀"] },
   "器官": { high: ["心臟", "小腸", "腎臟", "肝臟", "大腸"], low: ["肺臟", "胰臟", "子宮", "膀胱", "睪丸"] },
@@ -28,8 +29,10 @@ const wordBank = {
 };
 const allCategories = Object.keys(wordBank);
 
+// --- 全域變數 ---
 let sub_id = "PLAYER_" + Math.random().toString(36).substring(2, 7).toUpperCase();
 
+// --- 洗牌函數 ---
 function shuffle(array) {
   let arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
@@ -39,6 +42,7 @@ function shuffle(array) {
   return arr;
 }
 
+// --- 區塊生成邏輯 (包含 20 題) ---
 function generateBlockTrials(coreCategory, correlationType) {
   let trials = [];
   let remainingCategories = shuffle(allCategories.filter(c => c !== coreCategory));
@@ -52,6 +56,7 @@ function generateBlockTrials(coreCategory, correlationType) {
   return shuffle(trials);
 }
 
+// 設定 6 個 Block 的抽樣條件
 const selectedCategories = shuffle([...allCategories]).slice(0, 6);
 const blockConditions = shuffle(['high', 'high', 'high', 'low', 'low', 'low']);
 const experimentBlocks = selectedCategories.map((cat, i) => ({
@@ -60,6 +65,9 @@ const experimentBlocks = selectedCategories.map((cat, i) => ({
     blockNum: i + 1
 }));
 
+// ===============================================
+// 立刻啟動 jsPsych 介面
+// ===============================================
 const jsPsych = initJsPsych({
   display_element: "jspsych-target",
   override_safe_mode: true
@@ -67,80 +75,71 @@ const jsPsych = initJsPsych({
 
 let timeline = [];
 
-// 1. 姓名輸入框 (套用你原本設計的 score-board 風格)
+// 節點 A: 輸入名字 (完全還原你的寫法)
 timeline.push({
-  type: jsPsychSurveyHtmlForm,
-  html: `
-    <div class="info-container">
-      <h2 style="font-size: 2.5rem; margin-bottom: 20px;">大腦認知挑戰</h2>
-      <div class="score-board" style="text-align: center; padding: 40px 20px;">
-        <p style="font-size: 1.3rem; color: var(--text-dim); margin-bottom: 20px;">請輸入您的名字或學號</p>
-        <input type="text" name="username" placeholder="例如：20927 陳小明" required autocomplete="off" 
-               style="width: 80%; padding: 15px; font-size: 1.2rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.4); color: white; text-align: center; margin-bottom: 20px;">
-      </div>
-    </div>
-  `,
-  button_label: "確認並進入",
+  type: jsPsychSurveyText,
+  questions: [{prompt: "<h2 style='color:white; margin-bottom:10px;'>請輸入您的名字或代號：</h2>", name: 'username', required: true}],
+  button_label: "確認並開始",
   on_finish: function(data){
     if(data.response.username) sub_id = data.response.username.trim();
   }
 });
 
-// 2. 說明頁 (套用你原本設計的 score-board 風格)
+// 節點 B: 說明頁 (使用你原本的 UI 加上你要求的附註)
 timeline.push({
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
-    <div class="info-container" style="max-width: 600px;">
-      <h2 style="color: var(--accent); text-shadow: 0 0 10px rgba(52, 152, 219, 0.5);">測驗規則說明</h2>
-      
-      <div class="score-board" style="text-align:left; padding: 25px;">
-        <p style="color: var(--rank-gold); font-weight: bold; font-size: 1.2rem; margin-top: 0;">⚠️ 判斷特別附註：</p>
-        <ul style="padding-left: 20px; line-height: 1.8; color: var(--text-main);">
-          <li><b>家具：</b> 家電屬於家具之一。</li>
-          <li><b>器官：</b> 僅包含人體器官。</li>
-          <li><b style="background-color: var(--rank-gold); color: #000; padding: 2px 6px; border-radius: 4px;">職業與動物不重疊（例如：校長不屬動物）。</b></li>
-        </ul>
-        
-        <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 20px 0;">
-        
-        <p>1. 畫面會先出現<b style="color:var(--text-dim)">類別</b>，接著出現<b>詞彙</b>。</p>
-        <p>2. 請以<b>最快且直覺</b>的方式判斷：<br>
+    <div class="info-container">
+      <h2>語意認知挑戰賽</h2>
+      <p>準備好測試你的大腦反應速度了嗎？</p>
+      <div class="score-board" style="text-align:left;">
+        <p>1. 螢幕上方出現<b>類別</b>。</p>
+        <p>2. 下方出現<b>詞彙</b>。</p>
+        <p>3. 判斷是否符合：<br>
             👉 符合按 <b style="color:var(--success)">綠色按鈕 (F)</b><br>
             👉 不符按 <b style="color:#e74c3c">紅色按鈕 (J)</b>
         </p>
-        <p style="color: #e74c3c; font-weight: bold; margin-bottom: 0;">⚡ 注意：每題限時 2.5 秒，請將手指預先放在鍵盤上！</p>
+        <hr style="border-top:1px solid rgba(255,255,255,0.2); margin:15px 0;">
+        <p style="color:#f1c40f; font-weight:bold; margin-bottom:5px;">⚠️ 附註：</p>
+        <ul style="margin-top:0; padding-left:20px; font-size:0.9rem;">
+          <li>家具：家電屬於家具之一。</li>
+          <li>器官：僅包含人體器官。</li>
+          <li><mark style="background-color: yellow; color: black; font-weight: bold; padding: 0 2px;">職業與動物並不重疊，例如：校長不屬於動物。</mark></li>
+        </ul>
+        <p style="color:#e74c3c; font-weight:bold; font-size:0.9rem;">※ 請以最快且直覺的方式作答，若 2.5 秒內未作答將跳轉下一題</p>
       </div>
-      <button id="start" class="mobile-btn btn-f" style="display:inline-block; width:220px;">開始挑戰</button>
+      <button id="start" class="mobile-btn btn-f" style="display:inline-block; width:200px;">開始挑戰</button>
     </div>`,
   choices: [" "],
   on_load: () => { 
-    document.getElementById('start').onclick = () => jsPsych.finishTrial();
+    document.getElementById('start').onclick = () => {
+        jsPsych.finishTrial();
+    };
   },
   on_finish: () => {
     let dynamicTimeline = [];
 
+    // 產生 6 個 Block，共 120 題
     experimentBlocks.forEach((bData, idx) => {
       const trials = generateBlockTrials(bData.category, bData.correlation);
       
       trials.forEach(t => {
-        dynamicTimeline.push({ 
-          type: jsPsychHtmlKeyboardResponse, 
-          stimulus: `<div class="trial-box"><div class="cue-label">${t.cue}</div><div class="target-label"></div></div>`, 
-          choices: "NO_KEYS", 
-          trial_duration: 800 
+        dynamicTimeline.push({ type: jsPsychHtmlKeyboardResponse, stimulus: '', choices: "NO_KEYS", trial_duration: 800 });
+        
+        dynamicTimeline.push({
+          type: jsPsychHtmlKeyboardResponse,
+          stimulus: `<div class="trial-box"><div class="cue-label">${t.cue}</div><div class="target-label"></div></div>`,
+          choices: "NO_KEYS", trial_duration: 800
         });
 
         dynamicTimeline.push({
           type: jsPsychHtmlKeyboardResponse,
           choices: ["f", "j"],
-          trial_duration: 2500, 
+          trial_duration: 2500, // 2.5秒限制
           data: { phase: 'test', block_order: bData.blockNum, block_condition: bData.correlation, cue: t.cue, target: t.target, condition: t.condition, match: t.match },
           stimulus: `
             <div id="progress-container"><div id="progress-bar"></div></div>
-            <div class="trial-box">
-              <div class="cue-label">${t.cue}</div>
-              <div class="target-label">${t.target}</div>
-            </div>
+            <div class="trial-box"><div class="cue-label">${t.cue}</div><div class="target-label">${t.target}</div></div>
             <div class="control-panel">
               <button id="btn-f" class="mobile-btn btn-f">符合 (F)</button>
               <button id="btn-j" class="mobile-btn btn-j">不符合 (J)</button>
@@ -156,13 +155,18 @@ timeline.push({
             document.getElementById('btn-j').onclick = () => handleResp('j');
           },
           on_finish: (data) => {
-            if (data.response === null) { data.correct = false; data.timeout = true; } 
-            else { data.correct = (data.response === 'f' && t.match) || (data.response === 'j' && !t.match); data.timeout = false; }
+            if (data.response === null) {
+              data.correct = false; data.timeout = true;
+            } else {
+              const char = data.response;
+              data.correct = (char === 'f' && t.match) || (char === 'j' && !t.match);
+              data.timeout = false;
+            }
           }
         });
       });
 
-      // 3. 各階段休息畫面 (恢復原本的數據面板)
+      // 原本的區塊休息畫面
       if (idx < 5) {
         dynamicTimeline.push({
           type: jsPsychHtmlKeyboardResponse,
@@ -174,68 +178,51 @@ timeline.push({
             const acc = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
             const validRTs = data.select('rt').values.filter(rt => rt !== null);
             const rt = validRTs.length > 0 ? Math.round(validRTs.reduce((a,b)=>a+b, 0) / validRTs.length) : 0;
-            
             return `
-              <div class="info-container">
-                <h2 style="margin-bottom: 20px;">階段 ${idx+1} / 6 完成</h2>
-                <div class="score-board">
-                  <div class="stat-row"><span class="stat-label">此階段正確率</span><span class="stat-value">${acc}%</span></div>
-                  <div class="stat-row" style="border:none;"><span class="stat-label">平均反應速度</span><span class="stat-value">${rt} ms</span></div>
-                </div>
-                <p style="color: var(--text-dim); margin-top: 30px; animation: pulse 1.5s infinite;">下一區塊即將開始，請稍候...</p>
-              </div>`;
+              <div class="info-container"><h2>階段 ${idx+1} / 6 完成</h2>
+              <div class="score-board"><div class="stat-row"><span class="stat-label">此階段正確率</span><span class="stat-value">${acc}%</span></div>
+              <div class="stat-row"><span class="stat-label">平均速度</span><span class="stat-value">${rt} ms</span></div></div>
+              <p>下一關載入中...</p></div>`;
           }
         });
       }
     });
 
-    // 4. 疑義審查面板 (套用你原本設計的 score-board 風格)
+    // 疑義審查面板 (保留基本邏輯，不用複雜樣式)
     dynamicTimeline.push({
       type: jsPsychSurveyHtmlForm,
-      button_label: '送出回饋並查看成績',
+      button_label: '確認送出',
       html: () => {
         const allTest = jsPsych.data.get().filter({phase: 'test'});
         const validRTs = allTest.select('rt').values.filter(rt => rt !== null);
         const meanRT = validRTs.reduce((a,b)=>a+b, 0) / validRTs.length;
         const sdRT = Math.sqrt(validRTs.map(x => Math.pow(x - meanRT, 2)).reduce((a,b)=>a+b, 0) / validRTs.length);
-        const hesitationThreshold = meanRT + sdRT;
+        const threshold = meanRT + sdRT;
 
-        let reviewHtml = `<div class="info-container" style="max-width: 800px; width: 90vw;">
-          <h2 style="color: var(--rank-gold);">📝 試次覆核</h2>
-          <p style="color:var(--text-dim); font-size: 1rem; line-height: 1.6; margin-bottom: 20px;">
-            以下是您未作答、答錯，或作答時間較長 (大於 ${Math.round(hesitationThreshold)}ms) 的題目。<br>
-            若您認為該詞彙的歸類有疑義，請勾選。
-          </p>
-          <div class="score-board custom-scrollbar" style="max-height: 35vh; overflow-y: auto; text-align: left; padding: 20px; margin: 0 auto 20px auto; max-width: 600px; border: 1px solid rgba(255,255,255,0.1);">`;
+        let reviewHtml = `<div class="info-container">
+          <h2>試次覆核</h2>
+          <p style="font-size:0.9rem;">以下是逾時、答錯，或作答時間大於 ${Math.round(threshold)}ms 的題目，若有疑義請勾選：</p>
+          <div style="height: 250px; overflow-y: auto; text-align: left; background: #333; padding: 10px; border-radius: 5px; margin-bottom: 15px;">`;
         
-        let counter = 0;
         allTest.values().forEach((t, i) => {
           let reason = "";
-          if (t.timeout) reason = `<span style="background:rgba(231, 76, 60, 0.2); color:#e74c3c; padding:2px 8px; border-radius:12px; font-size:0.9rem;">逾時</span>`;
-          else if (!t.correct) reason = `<span style="background:rgba(230, 126, 34, 0.2); color:#e67e22; padding:2px 8px; border-radius:12px; font-size:0.9rem;">答錯</span>`;
-          else if (t.rt > hesitationThreshold) reason = `<span style="background:rgba(241, 196, 15, 0.2); color:#f1c40f; padding:2px 8px; border-radius:12px; font-size:0.9rem;">猶豫 (${Math.round(t.rt)}ms)</span>`;
+          if (t.timeout) reason = "逾時";
+          else if (!t.correct) reason = "答錯";
+          else if (t.rt > threshold) reason = `猶豫 (${Math.round(t.rt)}ms)`;
 
           if (reason !== "") {
-            reviewHtml += `<div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.05);">
-              <label style="cursor: pointer; display: flex; align-items: center; gap: 15px;">
-                <input type="checkbox" name="doubt_trial_${i}" style="width:20px; height:20px; accent-color: var(--accent);">
-                <span style="flex-grow:1; font-size: 1.1rem;">類別：<b style="color:var(--accent);">${t.cue}</b> ➔ 詞彙：<b>${t.target}</b></span>
-                <span>${reason}</span>
-              </label>
-            </div>`;
-            counter++;
+            reviewHtml += `
+              <div style="margin-bottom: 8px; border-bottom: 1px solid #444; padding-bottom: 5px;">
+                <label style="cursor: pointer;"><input type="checkbox" name="doubt_${i}">
+                [${reason}] ${t.cue} ➔ ${t.target}</label>
+              </div>`;
           }
         });
-
-        if (counter === 0) reviewHtml += `<p style="text-align:center; color: var(--success); font-weight: bold; font-size: 1.2rem;">✨ 完美！沒有需要覆核的題目。</p>`;
         
         reviewHtml += `</div>
-          <div style="text-align: left; max-width: 600px; margin: 0 auto;">
-            <p style="color: var(--text-dim); margin-bottom: 10px; font-size: 0.95rem;">是否有其他未列在上方，但您認為會影響判斷的試次或原因？(選填)</p>
-            <textarea name="extra_feedback" style="width: 100%; height: 80px; background: rgba(0,0,0,0.4); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; padding: 15px; font-family: inherit; font-size: 1rem; box-sizing: border-box; resize: none;"></textarea>
-          </div>
+          <p style="text-align: left; font-size:0.9rem; margin-bottom: 5px;">是否有其他影響判斷之因素？</p>
+          <input type="text" name="feedback" style="width: 100%; box-sizing: border-box; background: #333; color: white; border: 1px solid #555;">
         </div>`;
-
         return reviewHtml;
       },
       on_finish: (data) => {
@@ -243,7 +230,7 @@ timeline.push({
       }
     });
 
-    // 5. 最終結算與排行榜 (完全恢復你原本的稱號系統)
+    // 實驗結束與資料上傳 (完全還原你原本的面板設計)
     dynamicTimeline.push({
       type: jsPsychHtmlKeyboardResponse,
       choices: "NO_KEYS",
@@ -261,16 +248,16 @@ timeline.push({
         else if (score > 1000) { title = "潛力新星"; beatPercent = 70; }
 
         return `
-          <div class="info-container" style="margin-top:5vh;">
-            <h1 style="font-size: 2.5rem; margin-bottom: 10px;">挑戰成功！</h1>
-            <div class="score-board" style="max-width:500px; padding: 40px 30px;">
-              <div class="rank-title" style="color: var(--text-dim);">獲得稱號</div>
+          <div class="info-container" style="margin-top:10vh;">
+            <h1>挑戰成功！</h1>
+            <div class="score-board" style="max-width:500px;">
+              <div class="rank-title">獲得稱號</div>
               <div class="final-rank">${title}</div>
               <div class="stat-row"><span class="stat-label">綜合積分</span><span class="stat-value">${score}</span></div>
               <div class="stat-row"><span class="stat-label">全服排名</span><span class="stat-value" style="color:#f1c40f">贏過 ${beatPercent}% 玩家</span></div>
-              <div class="stat-row" style="border:none; padding-bottom: 0;"><span class="stat-label">總平均反應</span><span class="stat-value">${Math.round(totalRT)} ms</span></div>
+              <div class="stat-row" style="border:none;"><span class="stat-label">總平均反應</span><span class="stat-value">${Math.round(totalRT)} ms</span></div>
             </div>
-            <p id="upload-status" style="color:var(--text-dim); font-size: 1.1rem; margin-top: 20px;">正在同步數據至資料庫...</p>
+            <p id="upload-status" style="color:#888;">正在同步數據...</p>
           </div>`;
       },
       on_load: async () => {
@@ -289,13 +276,14 @@ timeline.push({
             feedback: globalProps.feedback || {},
             completionTime: new Date().toLocaleString("zh-TW"),
             totalTrials: finalData.length,
+            accuracy: Math.round((jsPsych.data.get().filter({phase: 'test', correct: true}).count() / 120) * 100),
             device: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
           });
 
-          statusText.innerText = "✅ 數據已安全儲存，感謝您的參與！";
+          statusText.innerText = "✅ 數據已安全儲存，感謝參與！";
           statusText.style.color = "#2ecc71";
-          statusText.style.fontWeight = "bold";
         } catch(e) { 
+          console.error(e);
           statusText.innerText = "❌ 上傳失敗: " + e.message;
           statusText.style.color = "#e74c3c";
         }
