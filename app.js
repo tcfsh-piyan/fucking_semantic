@@ -48,13 +48,35 @@ function generateBlockTrials(coreCategory, correlationType) {
   let remainingCategories = shuffle(allCategories.filter(c => c !== coreCategory));
 
   let g1Targets = shuffle([...wordBank[coreCategory][correlationType]]);
-  // 💡 已全部改為英文條件代碼
   for (let i=0; i<5; i++) trials.push({ cue: coreCategory, target: g1Targets[i], match: true, condition: "repeat_match" });
   for (let i=0; i<5; i++) trials.push({ cue: coreCategory, target: wordBank[remainingCategories[i]][correlationType][i], match: false, condition: "repeat_mismatch" });
   for (let i=0; i<5; i++) trials.push({ cue: remainingCategories[i], target: wordBank[remainingCategories[i]][correlationType][0], match: true, condition: "non-repeat_match" });
   for (let i=5; i<10; i++) trials.push({ cue: remainingCategories[i], target: wordBank[remainingCategories[i-5]][correlationType][1], match: false, condition: "non-repeat_mismatch" });
 
   return shuffle(trials);
+}
+
+// 💡 獨立出 Firebase 上傳模組，供「正常結束」與「緊急救援」共用
+async function uploadDataToFirebase(feedbackObj, isEmergency = false) {
+  const finalData = jsPsych.data.get().filter({phase: 'test'}).values();
+  if (finalData.length === 0) return; // 沒數據不上傳
+
+  try {
+    await setDoc(doc(db, "results", sub_id), { 
+      subjectId: sub_id, 
+      experimentBlocks: experimentBlocks,
+      trialsData: finalData,
+      feedback: feedbackObj || {},
+      completionTime: new Date().toLocaleString("zh-TW"),
+      totalTrials: finalData.length,
+      accuracy: Math.round((jsPsych.data.get().filter({phase: 'test', correct: true}).count() / 120) * 100),
+      device: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+      saveType: isEmergency ? 'Emergency_AutoSave' : 'Normal_Submit' // 紀錄是自動存檔還是手動送出
+    });
+  } catch(e) {
+    console.error("Firebase 上傳失敗:", e);
+    throw e;
+  }
 }
 
 const selectedCategories = shuffle([...allCategories]).slice(0, 6);
@@ -72,7 +94,7 @@ const jsPsych = initJsPsych({
 
 let timeline = [];
 
-// 1. 高級毛玻璃首頁
+// 1. 高級毛玻璃首頁 (💡 改為代號或暱稱)
 timeline.push({
   type: jsPsychSurveyHtmlForm,
   html: `
@@ -80,7 +102,7 @@ timeline.push({
       <h2 style="font-size: 2.5rem; margin-bottom: 5px;">語意認知挑戰</h2>
       <p style="color:var(--text-dim); font-size: 1.2rem; margin-bottom: 25px;">大腦反應極限測試</p>
       <div class="score-board">
-        <p style="font-size: 1.3rem; margin-bottom: 15px; font-weight: bold;">請輸入代號或學號</p>
+        <p style="font-size: 1.3rem; margin-bottom: 15px; font-weight: bold;">請輸入您的代號或暱稱</p>
         <input type="text" name="username" placeholder="點此輸入" required autocomplete="off">
       </div>
     </div>
@@ -154,7 +176,6 @@ timeline.push({
             });
             const handleResp = (key) => { jsPsych.finishTrial({ response: key, rt: performance.now() - startT }); };
             
-            // 使用 preventDefault 攔截點擊，防止穿透
             document.getElementById('btn-f').addEventListener('touchstart', (e) => { e.preventDefault(); handleResp('f'); });
             document.getElementById('btn-j').addEventListener('touchstart', (e) => { e.preventDefault(); handleResp('j'); });
             document.getElementById('btn-f').onmousedown = () => handleResp('f');
@@ -172,7 +193,6 @@ timeline.push({
         });
       });
 
-      // 💡 真正的修復在這裡：移除 if (idx < 5)，讓第 6 關結束後「絕對」會出現這個緩衝畫面！
       dynamicTimeline.push({
         type: jsPsychHtmlKeyboardResponse,
         choices: "NO_KEYS", trial_duration: 4500,
@@ -198,7 +218,7 @@ timeline.push({
       });
     });
 
-    // 3. 疑義覆核面板
+    // 3. 疑義覆核面板 (包含自動強制存檔機制)
     dynamicTimeline.push({
       type: jsPsychSurveyHtmlForm,
       button_label: '確認送出',
@@ -213,7 +233,6 @@ timeline.push({
           <style>
             body { overflow: auto !important; touch-action: auto !important; }
             #progress-container { display: none !important; width: 0 !important; transition: none !important; }
-            /* 鎖定按鈕時的樣式 */
             #jspsych-survey-html-form-next:disabled { background: #555 !important; color: #aaa !important; cursor: not-allowed !important; transform: none !important; }
           </style>
           <div class="info-container" style="width: 95vw; margin-bottom: 50px;">
@@ -249,7 +268,6 @@ timeline.push({
         const pb = document.getElementById('progress-container');
         if (pb) pb.remove();
 
-        // 💡 終極物理防呆：鎖死按鈕並加上 2 秒倒數
         const submitBtn = document.getElementById('jspsych-survey-html-form-next');
         if(submitBtn) {
             submitBtn.disabled = true;
@@ -267,8 +285,28 @@ timeline.push({
                 }
             }, 1000);
         }
+
+        // 💡 終極防呆機制：如果受試者在這一頁切換 APP、暗屏或關閉分頁，瞬間觸發自動上傳！
+        window.emergencyAutoSave = () => {
+            if (document.visibilityState === 'hidden') {
+                let currentFeedback = {};
+                const form = document.getElementById('jspsych-survey-html-form');
+                if (form) {
+                    const formData = new FormData(form);
+                    formData.forEach((val, key) => { 
+                        currentFeedback[key] = (val === 'on') ? true : val; // 轉換 checkbox 格式
+                    });
+                }
+                uploadDataToFirebase(currentFeedback, true); // isEmergency = true
+            }
+        };
+        document.addEventListener("visibilitychange", window.emergencyAutoSave);
+        window.addEventListener("pagehide", window.emergencyAutoSave);
       },
       on_finish: (data) => { 
+        // 正常按下送出按鈕時，移除緊急防呆監聽器，避免重複觸發
+        document.removeEventListener("visibilitychange", window.emergencyAutoSave);
+        window.removeEventListener("pagehide", window.emergencyAutoSave);
         userFeedbackData = data.response; 
       }
     });
@@ -304,23 +342,13 @@ timeline.push({
           </div>`;
       },
       on_load: async () => {
-        const finalData = jsPsych.data.get().filter({phase: 'test'}).values();
         const statusText = document.getElementById('upload-status');
-        
         try {
           statusText.innerText = "📡 數據上傳中...";
           statusText.style.color = "#3498db";
-
-          await setDoc(doc(db, "results", sub_id), { 
-            subjectId: sub_id, 
-            experimentBlocks: experimentBlocks,
-            trialsData: finalData,
-            feedback: userFeedbackData,
-            completionTime: new Date().toLocaleString("zh-TW"),
-            totalTrials: finalData.length,
-            accuracy: Math.round((jsPsych.data.get().filter({phase: 'test', correct: true}).count() / 120) * 100),
-            device: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
-          });
+          
+          // 💡 呼叫共用的上傳函數 (正常上傳模式)
+          await uploadDataToFirebase(userFeedbackData, false);
 
           statusText.innerText = "✅ 數據已成功儲存！感謝參與！";
           statusText.style.color = "var(--success)";
